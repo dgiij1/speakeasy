@@ -2,6 +2,24 @@ const base32 = require("./base32")
 const crypto = require("crypto")
 const url = require("url")
 const util = require("util")
+const sm3 = require("./sm3")
+
+function buf2arr(buf) {
+	let array = [];
+	let buffer = new Buffer.from(buf);
+	for (let i = 0; i < buffer.length ; i++) { array[i] = buffer[i]; }
+	return array;
+	}
+
+function arr2buf(arr) {
+	let array_int8 = Uint8Array.from(arr)
+	let buffer = new Buffer.from(array_int8.buffer); 
+	return buffer;
+	}
+
+function asciiStringToNumberArray(str) {
+	return str.split('').map(function(char) { return char.charCodeAt(0); });
+	}
 
 /**
  * Digest the one-time passcode options.
@@ -11,8 +29,8 @@ const util = require("util")
  * @param {Integer} options.counter Counter value
  * @param {String} [options.encoding="ascii"] Key encoding (ascii, hex,
  *   base32, base64).
- * @param {String} [options.algorithm="sha1"] Hash algorithm (sha1, sha256,
- *   sha512).
+ * @param {String} [options.algorithm="sha1"] Hash algorithm (sha1, sha256, sha512
+ *   sm3).
  * @param {String} [options.key] (DEPRECATED. Use `secret` instead.)
  *   Shared secret key
  * @return {Buffer} The one-time passcode as a buffer.
@@ -29,7 +47,7 @@ exports.digest = digest = (options) => {
 
 	// Backwards compatibility - deprecated
 	if (options.key != null) {
-		console.warn("@levminer/speakeasy - Deprecation Notice - Specifying the secret using `key` is no longer supported. Use `secret` instead.")
+		console.warn("dgiij1/speakeasy - Deprecation Notice - Specifying the secret using `key` is no longer supported. Use `secret` instead.")
 		secret = options.key
 	}
 
@@ -49,6 +67,12 @@ exports.digest = digest = (options) => {
 		tmp = tmp >> 8
 	}
 
+	if (algorithm=="sm3") {
+		let digest=new Array(32)
+		sm3.sm3_hmac(buf2arr(buf),buf2arr(secret),digest)
+		return arr2buf(digest)
+		}
+
 	// init hmac with the key
 	const hmac = crypto.createHmac(algorithm, secret)
 
@@ -63,7 +87,7 @@ exports.digest = digest = (options) => {
  * Generate a counter-based one-time token. Specify the key and counter, and
  * receive the one-time password for that counter position as a string. You can
  * also specify a token length, as well as the encoding (ASCII, hexadecimal, or
- * base32) and the hashing algorithm to use (SHA1, SHA256, SHA512).
+ * base32) and the hashing algorithm to use (SHA1, SHA256, SHA512, SM3).
  *
  * @param {Object} options
  * @param {String} options.secret Shared secret key
@@ -73,8 +97,8 @@ exports.digest = digest = (options) => {
  *   passcode.
  * @param {String} [options.encoding="ascii"] Key encoding (ascii, hex,
  *   base32, base64).
- * @param {String} [options.algorithm="sha1"] Hash algorithm (sha1, sha256,
- *   sha512).
+ * @param {String} [options.algorithm="sha1"] Hash algorithm (sha1, sha256, sha512
+ *   sm3).
  * @param {String} [options.key] (DEPRECATED. Use `secret` instead.)
  *   Shared secret key
  * @param {Integer} [options.length=6] (DEPRECATED. Use `digits` instead.) The
@@ -88,7 +112,7 @@ exports.hotp = hotpGenerate = (options) => {
 	const digits = (options.digits != null ? options.digits : options.length) || 6
 	if (options.length != null)
 		console.warn(
-			"@levminer/speakeasy - Deprecation Notice - Specifying token digits using `length` is no longer supported. Use `digits` instead."
+			"dgiij1/speakeasy - Deprecation Notice - Specifying token digits using `length` is no longer supported. Use `digits` instead."
 		)
 
 	// digest the options
@@ -139,8 +163,8 @@ exports.counter = exports.hotp
  *   passcode against all One Time Passcodes between 5 and 15, inclusive.
  * @param {String} [options.encoding="ascii"] Key encoding (ascii, hex,
  *   base32, base64).
- * @param {String} [options.algorithm="sha1"] Hash algorithm (sha1, sha256,
- *   sha512).
+ * @param {String} [options.algorithm="sha1"] Hash algorithm (sha1, sha256, sha512
+ *   sm3).
  * @return {Object} On success, returns an object with the counter
  *   difference between the client and the server as the `delta` property (i.e.
  *   `{ delta: 0 }`).
@@ -162,7 +186,7 @@ exports.hotp.verifyDelta = hotpVerifyDelta = (options) => {
 
 	// fail if token is not of correct length
 	if (token.length !== digits) {
-		throw new Error("@levminer/speakeasy - hotpVerifyDelta - Wrong token length")
+		throw new Error("dgiij1/speakeasy - hotpVerifyDelta - Wrong token length")
 	}
 
 	// parse token to integer
@@ -170,7 +194,7 @@ exports.hotp.verifyDelta = hotpVerifyDelta = (options) => {
 
 	// fail if token is NA
 	if (isNaN(token)) {
-		throw new Error("@levminer/speakeasy - hotpVerifyDelta - Token is not a number")
+		throw new Error("dgiij1/speakeasy - hotpVerifyDelta - Token is not a number")
 	}
 
 	// loop from C to C + W inclusive
@@ -205,8 +229,8 @@ exports.hotp.verifyDelta = hotpVerifyDelta = (options) => {
  *   passcode against all One Time Passcodes between 5 and 15, inclusive.
  * @param {String} [options.encoding="ascii"] Key encoding (ascii, hex,
  *   base32, base64).
- * @param {String} [options.algorithm="sha1"] Hash algorithm (sha1, sha256,
- *   sha512).
+ * @param {String} [options.algorithm="sha1"] Hash algorithm (sha1, sha256, sha512
+ *   sm3).
  * @return {Boolean} Returns true if the token matches within the given
  *   window, false otherwise.
  * @method hotp․verify
@@ -242,7 +266,7 @@ exports._counter = _counter = (options) => {
 	const epoch = (options.epoch != null ? options.epoch * 1000 : options.initial_time * 1000) || 0
 	if (options.initial_time != null)
 		console.warn(
-			"@levminer/speakeasy - Deprecation Notice - Specifying the epoch using `initial_time` is no longer supported. Use `epoch` instead."
+			"dgiij1/speakeasy - Deprecation Notice - Specifying the epoch using `initial_time` is no longer supported. Use `epoch` instead."
 		)
 
 	return Math.floor((time - epoch) / step / 1000)
@@ -254,7 +278,7 @@ exports._counter = _counter = (options) => {
  * time and a time step of 30 seconds, so there is a new token every 30 seconds.
  * You may override the time step and epoch for custom timing. You can also
  * specify a token length, as well as the encoding (ASCII, hexadecimal, or
- * base32) and the hashing algorithm to use (SHA1, SHA256, SHA512).
+ * base32) and the hashing algorithm to use (SHA1, SHA256, SHA512, SM3).
  *
  * Under the hood, TOTP calculates the counter value by finding how many time
  * steps have passed since the epoch, and calls HOTP with that counter value.
@@ -271,8 +295,8 @@ exports._counter = _counter = (options) => {
  *   passcode.
  * @param {String} [options.encoding="ascii"] Key encoding (ascii, hex,
  *   base32, base64).
- * @param {String} [options.algorithm="sha1"] Hash algorithm (sha1, sha256,
- *   sha512).
+ * @param {String} [options.algorithm="sha1"] Hash algorithm (sha1, sha256, sha512
+ *   sm3).
  * @param {String} [options.key] (DEPRECATED. Use `secret` instead.)
  *   Shared secret key
  * @param {Integer} [options.initial_time=0] (DEPRECATED. Use `epoch` instead.)
@@ -334,8 +358,8 @@ exports.time = exports.totp
  *   inclusive.
  * @param {String} [options.encoding="ascii"] Key encoding (ascii, hex,
  *   base32, base64).
- * @param {String} [options.algorithm="sha1"] Hash algorithm (sha1, sha256,
- *   sha512).
+ * @param {String} [options.algorithm="sha1"] Hash algorithm (sha1, sha256, sha512
+ *   sm3).
  * @return {Object} On success, returns an object with the time step
  *   difference between the client and the server as the `delta` property (e.g.
  *   `{ delta: 0 }`).
@@ -392,8 +416,8 @@ exports.totp.verifyDelta = totpVerifyDelta = (options) => {
  *   inclusive.
  * @param {String} [options.encoding="ascii"] Key encoding (ascii, hex,
  *   base32, base64).
- * @param {String} [options.algorithm="sha1"] Hash algorithm (sha1, sha256,
- *   sha512).
+ * @param {String} [options.algorithm="sha1"] Hash algorithm (sha1, sha256, sha512
+ *   sm3).
  * @return {Boolean} Returns true if the token matches within the given
  *   window, false otherwise.
  * @method totp․verify
@@ -464,13 +488,21 @@ exports.generateSecret = generateSecret = (options) => {
 	// return a SecretKey with ascii, hex, and base32
 	const SecretKey = {}
 	SecretKey.ascii = key
-	SecretKey.hex = Buffer.from(key, "ascii").toString("hex")
-	SecretKey.base32 = base32.encode(Buffer.from(key)).toString().replace(/=/g, "")
+
+	if (options.algorithm=="sm3") {
+		let buff=arr2buf(sm3.sm3_kdf(asciiStringToNumberArray(key),32))
+		SecretKey.hex=buff.toString("hex")
+		SecretKey.base32 = base32.encode(buff).toString().replace(/=/g, "")
+		}
+	else {
+		SecretKey.hex = Buffer.from(key, "ascii").toString("hex")
+		SecretKey.base32 = base32.encode(Buffer.from(key)).toString().replace(/=/g, "")
+		}
 
 	// generate some qr codes if requested
 	if (qr_codes) {
 		console.warn(
-			"@levminer/speakeasy - Deprecation Notice - generateSecret() QR codes are deprecated and no longer supported. Please use your own QR code implementation."
+			"dgiij1/speakeasy - Deprecation Notice - generateSecret() QR codes are deprecated and no longer supported. Please use your own QR code implementation."
 		)
 		SecretKey.qr_code_ascii = `https://chart.googleapis.com/chart?chs=166x166&chld=L|0&cht=qr&chl=${encodeURIComponent(SecretKey.ascii)}`
 		SecretKey.qr_code_hex = `https://chart.googleapis.com/chart?chs=166x166&chld=L|0&cht=qr&chl=${encodeURIComponent(SecretKey.hex)}`
@@ -489,7 +521,7 @@ exports.generateSecret = generateSecret = (options) => {
 	// generate a QR code for use in Google Authenticator if requested
 	if (google_auth_qr) {
 		console.warn(
-			"@levminer/speakeasy - Deprecation Notice - generateSecret() Google Auth QR code is deprecated and no longer supported. Please use your own QR code implementation."
+			"dgiij1/speakeasy - Deprecation Notice - generateSecret() Google Auth QR code is deprecated and no longer supported. Please use your own QR code implementation."
 		)
 		SecretKey.google_auth_qr = `https://chart.googleapis.com/chart?chs=166x166&chld=L|0&cht=qr&chl=${encodeURIComponent(
 			exports.otpauthURL({ secret: SecretKey.base32, label: name })
@@ -552,8 +584,8 @@ exports.generate_key_ascii = util.deprecate((length, symbols) => {
  *   for HOTP.
  * @param {String} [options.issuer] The provider or service with which the
  *   secret key is associated.
- * @param {String} [options.algorithm="sha1"] Hash algorithm (sha1, sha256,
- *   sha512).
+ * @param {String} [options.algorithm="sha1"] Hash algorithm (sha1, sha256, sha512
+ *   sm3).
  * @param {Integer} [options.digits=6] The number of digits for the one-time
  *   passcode. Currently ignored by Google Authenticator.
  * @param {Integer} [options.period=30] The length of time for which a TOTP
@@ -567,7 +599,7 @@ exports.generate_key_ascii = util.deprecate((length, symbols) => {
     number of digits is non-numeric, or an invalid period is used. Warns if
     the number of digits is not either 6 or 8 (though 6 is the only one
     supported by Google Authenticator), and if the hashihng algorithm is
-    not one of the supported SHA1, SHA256, or SHA512.
+    not one of the supported SHA1, SHA256, SHA512 or SM3.
  * @see https://github.com/google/google-authenticator/wiki/Key-Uri-Format
  */
 
@@ -589,16 +621,16 @@ exports.otpauthURL = otpauthURL = (options) => {
 		case "hotp":
 			break
 		default:
-			throw new Error(`@levminer/speakeasy - otpauthURL - Invalid type \`${type}\`; must be \`hotp\` or \`totp\``)
+			throw new Error(`dgiij1/speakeasy - otpauthURL - Invalid type \`${type}\`; must be \`hotp\` or \`totp\``)
 	}
 
 	// validate required options
-	if (!secret) throw new Error("@levminer/speakeasy - otpauthURL - Missing secret")
-	if (!label) throw new Error("@levminer/speakeasy - otpauthURL - Missing label")
+	if (!secret) throw new Error("dgiij1/speakeasy - otpauthURL - Missing secret")
+	if (!label) throw new Error("dgiij1/speakeasy - otpauthURL - Missing label")
 
 	// require counter for HOTP
 	if (type === "hotp" && (counter === null || typeof counter === "undefined")) {
-		throw new Error("@levminer/speakeasy - otpauthURL - Missing counter value for HOTP")
+		throw new Error("dgiij1/speakeasy - otpauthURL - Missing counter value for HOTP")
 	}
 
 	// convert secret to base32
@@ -618,9 +650,10 @@ exports.otpauthURL = otpauthURL = (options) => {
 			case "SHA1":
 			case "SHA256":
 			case "SHA512":
+			case "SM3":
 				break
 			default:
-				console.warn("@levminer/speakeasy - otpauthURL - Warning - Algorithm generally should be SHA1, SHA256, or SHA512")
+				console.warn("dgiij1/speakeasy - otpauthURL - Warning - Algorithm generally should be SHA1, SHA256, SHA512 or SM3")
 		}
 		query.algorithm = algorithm.toUpperCase()
 	}
@@ -635,7 +668,7 @@ exports.otpauthURL = otpauthURL = (options) => {
 				case 8:
 					break
 				default:
-					console.warn("@levminer/speakeasy - otpauthURL - Warning - Digits generally should be either 6 or 8")
+					console.warn("dgiij1/speakeasy - otpauthURL - Warning - Digits generally should be either 6 or 8")
 			}
 		}
 		query.digits = digits
@@ -645,7 +678,7 @@ exports.otpauthURL = otpauthURL = (options) => {
 	if (period != null) {
 		period = parseInt(period, 10)
 		if (~~period !== period) {
-			throw new Error(`@levminer/speakeasy - otpauthURL - Invalid period \`${period}\``)
+			throw new Error(`dgiij1/speakeasy - otpauthURL - Invalid period \`${period}\``)
 		}
 		query.period = period
 	}
