@@ -6,3 +6,9 @@
 ## License
 
 -   MIT
+
+## Credits
+
+- Original project: [GmSSL-JS](https://github.com/guanzhi/GmSSL-JS)
+- Original Project: [speakeasy](https://github.com/Levminer/speakeasy)
+
